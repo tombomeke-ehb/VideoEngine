@@ -1,17 +1,21 @@
 package com.github.dev34.videoengine;
 
 import com.github.dev34.videoengine.commands.VideoEngineCommand;
+import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class VideoEnginePlugin extends JavaPlugin {
 
-    public static VideoEnginePlugin plugin;
+    // VideoEngine 1.0
 
+    public static VideoEnginePlugin plugin;
+    public static BukkitAudiences audience;
     @Override
     public void onEnable() {
         plugin = this;
+        audience = BukkitAudiences.create(this);
         Bukkit.getPluginCommand("videoengine").setExecutor(new VideoEngineCommand());
         getLogger().info(getName() + " has been enabled!");
     }

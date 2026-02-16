@@ -1,14 +1,9 @@
 package com.github.dev34.videoengine;
 
 import net.kyori.adventure.key.Key;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
-import org.bukkit.Bukkit;
-import org.bukkit.NamespacedKey;
 import org.bukkit.SoundCategory;
-import org.bukkit.advancement.Advancement;
-import org.bukkit.advancement.AdvancementProgress;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -16,21 +11,35 @@ import java.util.HashMap;
 
 public final class VideoPlayer {
 
-    private static HashMap<Player, VideoSession> viewers = new HashMap<>();
+    private static final HashMap<Player, VideoSession> viewers = new HashMap<>();
 
     public static HashMap<Player, VideoSession> getViewers() {
         return viewers;
     }
 
-    public static void displayFrame(Player player, String font, String character){
-        if (character == null || character.isEmpty()) return;
+    public static void sendActionBar(Player player, String string){
+        VideoEnginePlugin.plugin.audience
+                .player(player)
+                .sendActionBar(Component.text(string));
+    }
+
+    public static void sendActionBar(Player player, Component component){
+        VideoEnginePlugin.plugin.audience
+                .player(player)
+                .sendActionBar(component);
+    }
+
+    public static void displayFrame(Player player, String font, int codePoint) {
+        if (!Character.isValidCodePoint(codePoint)) return;
+
+        String character;
         try {
-            TextComponent component = Component.text(character).font(Key.key(font));
-            BukkitAudiences audiences = BukkitAudiences.create(VideoEnginePlugin.plugin);
-            audiences.player(player).sendActionBar(component);
-        } catch (Exception e) {
-            Bukkit.getLogger().warning("Couldn't display frame! " + e.getMessage());
+            character = new String(Character.toChars(codePoint));
+        } catch (IllegalArgumentException e) {
+            return;
         }
+        TextComponent component = Component.text(character).font(Key.key(font));
+        sendActionBar(player, component);
     }
 
     public static void displayFrames(Player player, String font, int frames) {
@@ -82,9 +91,9 @@ public final class VideoPlayer {
 
                 if (session.getSounds() != null && session.getCurrentSound() < session.getSounds().length) {
                     if (soundTickCounter == 0) {
-                        player.playSound(player, session.getSounds()[session.getCurrentSound()], SoundCategory.MASTER, 1.0f, 1.0f);
+                        player.playSound(player, session.getSounds()[session.getCurrentSound()],
+                                SoundCategory.MASTER, 1.0f, 1.0f);
                     }
-
                     soundTickCounter++;
 
                     if (soundTickCounter >= session.getSoundDurations()[session.getCurrentSound()]) {
@@ -93,13 +102,13 @@ public final class VideoPlayer {
                     }
                 }
 
-                String character = new String(Character.toChars(session.getCodePoint()));
-                displayFrame(player, session.getFont(), character);
+                displayFrame(player, session.getFont(), session.getCodePoint());
 
                 session.setCurrentFrame(session.getCurrentFrame() + 1);
                 session.setCodePoint(session.getCodePoint() + 1);
 
-                if (session.getCodePoint() > session.getRanges()[session.getRangeIndex()][1]) {
+                if (session.getRangeIndex() < session.getRanges().length &&
+                        session.getCodePoint() > session.getRanges()[session.getRangeIndex()][1]) {
                     session.setRangeIndex(session.getRangeIndex() + 1);
                     if (session.getRangeIndex() < session.getRanges().length) {
                         session.setCodePoint(session.getRanges()[session.getRangeIndex()][0]);
@@ -114,22 +123,16 @@ public final class VideoPlayer {
 
     public static void stopVideo(Player player) {
         VideoSession session = viewers.remove(player);
-
         if (session != null) {
             session.pause();
-            BukkitAudiences audiences = BukkitAudiences.create(VideoEnginePlugin.plugin);
-            audiences.player(player).sendActionBar(Component.text(""));
+            sendActionBar(player, Component.empty());
             player.stopAllSounds();
         }
     }
 
-    // Pause & Stop causes video to stop being synced with audio
-
     public static void pauseVideo(Player player) {
         VideoSession session = viewers.get(player);
-        if (session != null) {
-            session.pause();
-        }
+        if (session != null) session.pause();
     }
 
     public static void resumeVideo(Player player) {
@@ -151,9 +154,9 @@ public final class VideoPlayer {
 
                 if (session.getSounds() != null && session.getCurrentSound() < session.getSounds().length) {
                     if (soundTickCounter == 0) {
-                        player.playSound(player, session.getSounds()[session.getCurrentSound()], SoundCategory.MASTER, 1.0f, 1.0f);
+                        player.playSound(player, session.getSounds()[session.getCurrentSound()],
+                                SoundCategory.MASTER, 1.0f, 1.0f);
                     }
-
                     soundTickCounter++;
 
                     if (soundTickCounter >= session.getSoundDurations()[session.getCurrentSound()]) {
@@ -162,13 +165,13 @@ public final class VideoPlayer {
                     }
                 }
 
-                String character = new String(Character.toChars(session.getCodePoint()));
-                displayFrame(player, session.getFont(), character);
+                displayFrame(player, session.getFont(), session.getCodePoint());
 
                 session.setCurrentFrame(session.getCurrentFrame() + 1);
                 session.setCodePoint(session.getCodePoint() + 1);
 
-                if (session.getCodePoint() > session.getRanges()[session.getRangeIndex()][1]) {
+                if (session.getRangeIndex() < session.getRanges().length &&
+                        session.getCodePoint() > session.getRanges()[session.getRangeIndex()][1]) {
                     session.setRangeIndex(session.getRangeIndex() + 1);
                     if (session.getRangeIndex() < session.getRanges().length) {
                         session.setCodePoint(session.getRanges()[session.getRangeIndex()][0]);
@@ -179,7 +182,5 @@ public final class VideoPlayer {
 
         session.setTask(runnable);
         runnable.runTaskTimer(VideoEnginePlugin.plugin, 0L, 1L);
-
     }
-
 }
